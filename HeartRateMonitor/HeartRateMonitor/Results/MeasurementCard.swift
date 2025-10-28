@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MeasurementCard: View {
     let measurement: HeartRateMeasurement
+    var viewMode: ViewMode = .minimal
     
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -33,54 +34,116 @@ struct MeasurementCard: View {
             }
             
             Divider()
-            
-            MetricRow(
-                icon: "heart.fill",
-                label: "Heart Rate",
-                value: "\(Int(measurement.heartRate ?? 0))",
-                unit: "BPM",
-                color: .red
-            )
-            
-            MetricRow(
-                icon: "waveform.path.ecg",
-                label: "HRV",
-                value: String(format: "%.1f", measurement.hrv ?? 0),
-                unit: "ms",
-                color: .blue
-            )
-            
-            MetricRow(
-                icon: "chart.line.uptrend.xyaxis",
-                label: "SDNN",
-                value: String(format: "%.1f", measurement.sdnn ?? 0),
-                unit: "ms",
-                color: .green
-            )
-            
-            MetricRow(
-                icon: "brain.head.profile",
-                label: "Stress",
-                value: String(format: "%.0f", measurement.stress ?? 0),
-                unit: "%",
-                color: .orange
-            )
-            
-            MetricRow(
-                icon: "bolt.fill",
-                label: "Energy",
-                value: String(format: "%.0f", measurement.energy ?? 0),
-                unit: "%",
-                color: .yellow
-            )
-            
-            MetricRow(
-                icon: "star.fill",
-                label: "Plus Score",
-                value: String(format: "%.0f", measurement.plus ?? 0),
-                unit: "",
-                color: .purple
-            )
+
+            if viewMode == .minimal {
+                MetricRow(
+                    icon: "heart.fill",
+                    label: "Heart Rate",
+                    value: "\(Int(measurement.heartRate ?? 0))",
+                    unit: "BPM",
+                    color: .red
+                )
+
+                MetricRow(
+                    icon: "waveform.path.ecg",
+                    label: "HRV",
+                    value: String(format: "%.1f", measurement.hrv ?? 0),
+                    unit: "ms",
+                    color: .blue
+                )
+
+                MetricRow(
+                    icon: "chart.line.uptrend.xyaxis",
+                    label: "SDNN",
+                    value: String(format: "%.1f", measurement.sdnn ?? 0),
+                    unit: "ms",
+                    color: .green
+                )
+
+                MetricRow(
+                    icon: "brain.head.profile",
+                    label: "Stress",
+                    value: String(format: "%.0f", measurement.stress ?? 0),
+                    unit: "%",
+                    color: .orange
+                )
+
+                MetricRow(
+                    icon: "bolt.fill",
+                    label: "Energy",
+                    value: String(format: "%.0f", measurement.energy ?? 0),
+                    unit: "%",
+                    color: .yellow
+                )
+
+                MetricRow(
+                    icon: "star.fill",
+                    label: "Plus Score",
+                    value: String(format: "%.0f", measurement.plus ?? 0),
+                    unit: "",
+                    color: .purple
+                )
+            } else {
+                DetailedMetricRow(
+                    icon: "heart.fill",
+                    label: "Heart Rate",
+                    value: "\(Int(measurement.heartRate ?? 0))",
+                    unit: "BPM",
+                    color: .red,
+                    numericValue: measurement.heartRate ?? 0,
+                    maxValue: 200
+                )
+
+                DetailedMetricRow(
+                    icon: "waveform.path.ecg",
+                    label: "HRV",
+                    value: String(format: "%.1f", measurement.hrv ?? 0),
+                    unit: "ms",
+                    color: .blue,
+                    numericValue: measurement.hrv ?? 0,
+                    maxValue: 100
+                )
+
+                DetailedMetricRow(
+                    icon: "chart.line.uptrend.xyaxis",
+                    label: "SDNN",
+                    value: String(format: "%.1f", measurement.sdnn ?? 0),
+                    unit: "ms",
+                    color: .green,
+                    numericValue: measurement.sdnn ?? 0,
+                    maxValue: 100
+                )
+
+                DetailedMetricRow(
+                    icon: "brain.head.profile",
+                    label: "Stress",
+                    value: String(format: "%.0f", measurement.stress ?? 0),
+                    unit: "%",
+                    color: .orange,
+                    numericValue: measurement.stress ?? 0,
+                    maxValue: 100
+                )
+
+                DetailedMetricRow(
+                    icon: "bolt.fill",
+                    label: "Energy",
+                    value: String(format: "%.0f", measurement.energy ?? 0),
+                    unit: "%",
+                    color: .yellow,
+                    numericValue: measurement.energy ?? 0,
+                    maxValue: 100
+                )
+
+                DetailedMetricRow(
+                    icon: "star.fill",
+                    label: "Plus Score",
+                    value: String(format: "%.0f", measurement.plus ?? 0),
+                    unit: "",
+                    color: .purple,
+                    numericValue: measurement.plus ?? 0,
+                    maxValue: 100
+                )
+            }
         }
         .padding()
         .background(Color(.secondarySystemBackground))

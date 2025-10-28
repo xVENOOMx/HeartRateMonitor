@@ -8,11 +8,17 @@
 import SwiftUI
 import SwiftData
 
+enum ViewMode: String, CaseIterable {
+    case minimal = "Minimal"
+    case detailed = "Detailed"
+}
+
 struct ResultsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [SortDescriptor(\HeartRateMeasurement.timestamp, order: .reverse)])
     private var measurements: [HeartRateMeasurement]
     @State private var showingCameraView = false
+    @State private var viewMode: ViewMode = .minimal
     
     var body: some View {
         NavigationStack {
@@ -23,7 +29,7 @@ struct ResultsView: View {
                             EmptyStateView()
                         } else {
                             ForEach(measurements) { measurement in
-                                MeasurementCard(measurement: measurement)
+                                MeasurementCard(measurement: measurement, viewMode: viewMode)
                             }
                         }
                     }
@@ -54,6 +60,17 @@ struct ResultsView: View {
                 }
             }
             .navigationTitle("Heart Rate")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Picker("View Mode", selection: $viewMode) {
+                        ForEach(ViewMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
+                }
+            }
             .fullScreenCover(isPresented: $showingCameraView) {
                 CameraView(isPresented: $showingCameraView)
             }
