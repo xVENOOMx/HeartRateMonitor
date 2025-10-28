@@ -14,8 +14,11 @@ struct CameraView: View {
     @StateObject private var cameraManager = CameraManager()
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    
+    @State private var showingDetailView = false
+    @State private var savedMeasurement: HeartRateMeasurement?
+
     var body: some View {
+        NavigationStack {
         ZStack {
             Color.black.ignoresSafeArea()
             
@@ -110,13 +113,16 @@ struct CameraView: View {
                         }
                         
                         Button {
-                            saveMeasurement(cameraManager.finalMeasurement!)
-                            
-                            if let heartRate = cameraManager.finalMeasurement?.heartRate {
-                                HealthKitManager.shared.saveHeartRate(heartRate)
+                            if let measurement = cameraManager.finalMeasurement {
+                                saveMeasurement(measurement)
+                                savedMeasurement = measurement
+
+                                if let heartRate = measurement.heartRate {
+                                    HealthKitManager.shared.saveHeartRate(heartRate)
+                                }
+
+                                showingDetailView = true
                             }
-                            
-                            isPresented = false
                         } label: {
                             Text("See Results")
                                 .font(.headline)
@@ -265,8 +271,29 @@ struct CameraView: View {
                 break
             }
         }
+        .navigationDestination(isPresented: $showingDetailView) {
+            if let measurement = savedMeasurement {
+                DetailResultView(measurement: measurement)
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button {
+                                showingDetailView = false
+                                isPresented = false
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                    Text("Done")
+                                }
+                                .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+            }
+        }
+        }
     }
-    
+
     private func saveMeasurement(_ measurement: HeartRateMeasurement) {
         modelContext.insert(measurement)
         try? modelContext.save()

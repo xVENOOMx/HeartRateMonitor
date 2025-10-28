@@ -453,16 +453,28 @@ class CameraManager: NSObject, ObservableObject {
         
         print("   ✅ Valid peaks detected: \(peaks.count)")
         
-        // Calculate metrics
+        // Calculate basic metrics
         let heartRate = calculateHeartRate(peaks: peaks, samplingRate: targetSamplingRate)
         let hrv = calculateHRV(peaks: peaks, samplingRate: targetSamplingRate)
         let sdnn = calculateSDNN(peaks: peaks, samplingRate: targetSamplingRate)
         let stress = calculateStress(hrv: hrv, heartRate: heartRate)
         let energy = calculateEnergy(hrv: hrv, heartRate: heartRate)
         let plus = calculatePlusScore(heartRate: heartRate, hrv: hrv, sdnn: sdnn)
-        
+
+        // Calculate additional HRV metrics
+        let meanRR = calculateMeanRR(peaks: peaks, samplingRate: targetSamplingRate)
+        let rmssd = calculateRMSSD(peaks: peaks, samplingRate: targetSamplingRate)
+        let pnn50 = calculatePNN50(peaks: peaks, samplingRate: targetSamplingRate)
+        let mxdmn = calculateMxDMn(peaks: peaks, samplingRate: targetSamplingRate)
+        let mode = calculateMode(peaks: peaks, samplingRate: targetSamplingRate)
+        let amo50 = calculateAMo50(peaks: peaks, samplingRate: targetSamplingRate)
+        let cv = calculateCV(peaks: peaks, samplingRate: targetSamplingRate)
+        let coherence = calculateCoherence(peaks: peaks, samplingRate: targetSamplingRate)
+        let focus = calculateFocus(hrv: hrv, coherence: coherence, sdnn: sdnn)
+        let health = calculateHealth(heartRate: heartRate, hrv: hrv, sdnn: sdnn, stress: stress, energy: energy)
+
         let confidence = determineConfidence(snr: signalToNoiseRatio, perfusion: perfusionIndex)
-        
+
         print("\n📈 RESULTS:")
         print("   Heart Rate: \(Int(heartRate)) BPM")
         print("   HRV (RMSSD): \(String(format: "%.1f ms", hrv))")
@@ -470,9 +482,14 @@ class CameraManager: NSObject, ObservableObject {
         print("   Stress: \(Int(stress))%")
         print("   Energy: \(Int(energy))%")
         print("   Plus Score: \(Int(plus))")
+        print("   Mean RR: \(String(format: "%.1f ms", meanRR))")
+        print("   pNN50: \(String(format: "%.1f%%", pnn50))")
+        print("   Coherence: \(String(format: "%.1f", coherence))")
+        print("   Focus: \(String(format: "%.1f", focus))")
+        print("   Health: \(String(format: "%.1f", health))")
         print("   Confidence: \(confidence)")
         print(String(repeating: "=", count: 70) + "\n")
-        
+
         let measurement = HeartRateMeasurement(
             heartRate: heartRate,
             hrv: hrv,
@@ -481,7 +498,17 @@ class CameraManager: NSObject, ObservableObject {
             energy: energy,
             plus: plus,
             signalQuality: signalQuality,
-            confidence: confidence
+            confidence: confidence,
+            meanRR: meanRR,
+            rmssd: rmssd,
+            pnn50: pnn50,
+            mxdmn: mxdmn,
+            mode: mode,
+            amo50: amo50,
+            cv: cv,
+            coherence: coherence,
+            focus: focus,
+            health: health
         )
         
         let successFeedback = UINotificationFeedbackGenerator()
@@ -793,10 +820,168 @@ class CameraManager: NSObject, ObservableObject {
         let hrScore = max(0, 100 - abs(heartRate - 70))
         let hrvScore = min(100, hrv)
         let sdnnScore = min(100, sdnn)
-        
+
         return (hrScore + hrvScore + sdnnScore) / 3
     }
-    
+
+    // MARK: - Additional HRV Metrics
+
+    private func calculateMeanRR(peaks: [Int], samplingRate: Double) -> Double {
+        guard peaks.count >= 2 else { return 0 }
+
+        var intervals: [Double] = []
+        for i in 1..<peaks.count {
+            let interval = Double(peaks[i] - peaks[i-1]) * (1000.0 / samplingRate)
+            intervals.append(interval)
+        }
+
+        return intervals.reduce(0, +) / Double(intervals.count)
+    }
+
+    private func calculateRMSSD(peaks: [Int], samplingRate: Double) -> Double {
+        guard peaks.count >= 3 else { return 0 }
+
+        var intervals: [Double] = []
+        for i in 1..<peaks.count {
+            let interval = Double(peaks[i] - peaks[i-1]) * (1000.0 / samplingRate)
+            intervals.append(interval)
+        }
+
+        var squaredDiffs: [Double] = []
+        for i in 1..<intervals.count {
+            let diff = intervals[i] - intervals[i-1]
+            squaredDiffs.append(diff * diff)
+        }
+
+        let meanSquared = squaredDiffs.reduce(0, +) / Double(squaredDiffs.count)
+        return sqrt(meanSquared)
+    }
+
+    private func calculatePNN50(peaks: [Int], samplingRate: Double) -> Double {
+        guard peaks.count >= 3 else { return 0 }
+
+        var intervals: [Double] = []
+        for i in 1..<peaks.count {
+            let interval = Double(peaks[i] - peaks[i-1]) * (1000.0 / samplingRate)
+            intervals.append(interval)
+        }
+
+        var count50 = 0
+        for i in 1..<intervals.count {
+            if abs(intervals[i] - intervals[i-1]) > 50 {
+                count50 += 1
+            }
+        }
+
+        return (Double(count50) / Double(intervals.count - 1)) * 100.0
+    }
+
+    private func calculateMxDMn(peaks: [Int], samplingRate: Double) -> Double {
+        guard peaks.count >= 2 else { return 0 }
+
+        var intervals: [Double] = []
+        for i in 1..<peaks.count {
+            let interval = Double(peaks[i] - peaks[i-1]) * (1000.0 / samplingRate)
+            intervals.append(interval)
+        }
+
+        guard let maxRR = intervals.max(), let minRR = intervals.min() else { return 0 }
+        return maxRR - minRR
+    }
+
+    private func calculateMode(peaks: [Int], samplingRate: Double) -> Double {
+        guard peaks.count >= 2 else { return 0 }
+
+        var intervals: [Double] = []
+        for i in 1..<peaks.count {
+            let interval = Double(peaks[i] - peaks[i-1]) * (1000.0 / samplingRate)
+            intervals.append(interval)
+        }
+
+        // Round to nearest 10ms for mode calculation
+        let roundedIntervals = intervals.map { round($0 / 10.0) * 10.0 }
+
+        var frequencyDict: [Double: Int] = [:]
+        for interval in roundedIntervals {
+            frequencyDict[interval, default: 0] += 1
+        }
+
+        guard let mode = frequencyDict.max(by: { $0.value < $1.value })?.key else {
+            return roundedIntervals.first ?? 0
+        }
+
+        return mode
+    }
+
+    private func calculateAMo50(peaks: [Int], samplingRate: Double) -> Double {
+        guard peaks.count >= 2 else { return 0 }
+
+        var intervals: [Double] = []
+        for i in 1..<peaks.count {
+            let interval = Double(peaks[i] - peaks[i-1]) * (1000.0 / samplingRate)
+            intervals.append(interval)
+        }
+
+        let mode = calculateMode(peaks: peaks, samplingRate: samplingRate)
+
+        // Count intervals within ±25ms of mode
+        let modeCount = intervals.filter { abs($0 - mode) <= 25 }.count
+
+        return (Double(modeCount) / Double(intervals.count)) * 100.0
+    }
+
+    private func calculateCV(peaks: [Int], samplingRate: Double) -> Double {
+        guard peaks.count >= 2 else { return 0 }
+
+        let meanRR = calculateMeanRR(peaks: peaks, samplingRate: samplingRate)
+        let sdnn = calculateSDNN(peaks: peaks, samplingRate: samplingRate)
+
+        guard meanRR > 0 else { return 0 }
+        return (sdnn / meanRR) * 100.0
+    }
+
+    private func calculateCoherence(peaks: [Int], samplingRate: Double) -> Double {
+        guard peaks.count >= 5 else { return 0 }
+
+        var intervals: [Double] = []
+        for i in 1..<peaks.count {
+            let interval = Double(peaks[i] - peaks[i-1]) * (1000.0 / samplingRate)
+            intervals.append(interval)
+        }
+
+        // Calculate coherence based on rhythm regularity
+        let sdnn = calculateSDNN(peaks: peaks, samplingRate: samplingRate)
+        let meanRR = calculateMeanRR(peaks: peaks, samplingRate: samplingRate)
+
+        guard meanRR > 0 else { return 0 }
+
+        // Higher SDNN relative to mean indicates lower coherence
+        let variability = sdnn / meanRR
+        let coherence = max(0, min(100, 100 - (variability * 200)))
+
+        return coherence
+    }
+
+    private func calculateFocus(hrv: Double, coherence: Double, sdnn: Double) -> Double {
+        // Focus is influenced by moderate HRV, high coherence, and stable SDNN
+        let hrvFactor = min(100, hrv * 1.2)  // Higher HRV contributes to focus
+        let coherenceFactor = coherence       // High coherence indicates focus
+        let sdnnFactor = min(100, sdnn * 1.5) // Moderate SDNN indicates stability
+
+        return (hrvFactor * 0.3 + coherenceFactor * 0.5 + sdnnFactor * 0.2)
+    }
+
+    private func calculateHealth(heartRate: Double, hrv: Double, sdnn: Double, stress: Double, energy: Double) -> Double {
+        // Overall health score based on multiple factors
+        let hrScore = max(0, 100 - abs(heartRate - 70))  // Optimal HR around 70
+        let hrvScore = min(100, hrv * 1.5)               // Higher HRV is better
+        let sdnnScore = min(100, sdnn * 1.5)             // Higher SDNN is better
+        let stressScore = 100 - stress                    // Lower stress is better
+        let energyScore = energy                          // Higher energy is better
+
+        return (hrScore * 0.2 + hrvScore * 0.25 + sdnnScore * 0.2 + stressScore * 0.2 + energyScore * 0.15)
+    }
+
     private func calculateMedian(_ values: [Double]) -> Double {
         let sorted = values.sorted()
         let count = sorted.count

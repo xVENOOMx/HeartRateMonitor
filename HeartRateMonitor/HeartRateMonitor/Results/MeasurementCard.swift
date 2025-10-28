@@ -9,82 +9,89 @@ import SwiftUI
 
 struct MeasurementCard: View {
     let measurement: HeartRateMeasurement
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(measurement.timestamp ?? Date(), style: .date)
-                    .font(.headline)
-                Spacer()
-                Text(measurement.timestamp ?? Date(), style: .time)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            
-            if let quality = measurement.signalQuality, let confidence = measurement.confidence {
+        NavigationLink(destination: DetailResultView(measurement: measurement)) {
+            VStack(alignment: .leading, spacing: 15) {
                 HStack {
-                    Image(systemName: qualityIcon(quality))
-                        .foregroundStyle(qualityColor(quality))
-                    Text(confidence)
+                    Text(measurement.timestamp ?? Date(), style: .date)
+                        .font(.headline)
+                    Spacer()
+                    Text(measurement.timestamp ?? Date(), style: .time)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Spacer()
                 }
+
+                if let quality = measurement.signalQuality, let confidence = measurement.confidence {
+                    HStack {
+                        Image(systemName: qualityIcon(quality))
+                            .foregroundStyle(qualityColor(quality))
+                        Text(confidence)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                }
+
+                Divider()
+
+                MetricRow(
+                    icon: "heart.fill",
+                    label: "Heart Rate",
+                    value: "\(Int(measurement.heartRate ?? 0))",
+                    unit: "BPM",
+                    color: .red
+                )
+
+                MetricRow(
+                    icon: "waveform.path.ecg",
+                    label: "HRV",
+                    value: String(format: "%.1f", measurement.hrv ?? 0),
+                    unit: "ms",
+                    color: .blue
+                )
+
+                MetricRow(
+                    icon: "chart.line.uptrend.xyaxis",
+                    label: "SDNN",
+                    value: String(format: "%.1f", measurement.sdnn ?? 0),
+                    unit: "ms",
+                    color: .green
+                )
+
+                MetricRow(
+                    icon: "brain.head.profile",
+                    label: "Stress",
+                    value: String(format: "%.0f", measurement.stress ?? 0),
+                    unit: "%",
+                    color: .orange
+                )
+
+                MetricRow(
+                    icon: "bolt.fill",
+                    label: "Energy",
+                    value: String(format: "%.0f", measurement.energy ?? 0),
+                    unit: "%",
+                    color: .yellow
+                )
+
+                MetricRow(
+                    icon: "star.fill",
+                    label: "Plus Score",
+                    value: String(format: "%.0f", measurement.plus ?? 0),
+                    unit: "",
+                    color: .purple
+                )
             }
-            
-            Divider()
-            
-            MetricRow(
-                icon: "heart.fill",
-                label: "Heart Rate",
-                value: "\(Int(measurement.heartRate ?? 0))",
-                unit: "BPM",
-                color: .red
-            )
-            
-            MetricRow(
-                icon: "waveform.path.ecg",
-                label: "HRV",
-                value: String(format: "%.1f", measurement.hrv ?? 0),
-                unit: "ms",
-                color: .blue
-            )
-            
-            MetricRow(
-                icon: "chart.line.uptrend.xyaxis",
-                label: "SDNN",
-                value: String(format: "%.1f", measurement.sdnn ?? 0),
-                unit: "ms",
-                color: .green
-            )
-            
-            MetricRow(
-                icon: "brain.head.profile",
-                label: "Stress",
-                value: String(format: "%.0f", measurement.stress ?? 0),
-                unit: "%",
-                color: .orange
-            )
-            
-            MetricRow(
-                icon: "bolt.fill",
-                label: "Energy",
-                value: String(format: "%.0f", measurement.energy ?? 0),
-                unit: "%",
-                color: .yellow
-            )
-            
-            MetricRow(
-                icon: "star.fill",
-                label: "Plus Score",
-                value: String(format: "%.0f", measurement.plus ?? 0),
-                unit: "",
-                color: .purple
-            )
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(15)
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(15)
+        .buttonStyle(PlainButtonStyle())
     }
     
     private func qualityIcon(_ quality: Double) -> String {
