@@ -896,9 +896,9 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         
         let avgGreenBlue = (avgGreen + avgBlue) / 2.0
         let hasBloodSignature = avgRed > avgGreenBlue
-        
-        let fingerCovering = hasSignal && hasBloodSignature
-        
+
+        _ = hasSignal && hasBloodSignature
+
         Task { @MainActor in
             self.frameCount += 1
             self.perfusionIndex = perfusion
