@@ -276,7 +276,7 @@ struct MetricDetailCard: View {
             }
 
             // Gauge
-            Gauge(value: gaugeValue, in: gaugeRange) {
+            Gauge(value: min(max(gaugeValue, gaugeRange.lowerBound), gaugeRange.upperBound), in: gaugeRange) {
                 EmptyView()
             }
             .gaugeStyle(.accessoryLinear)
