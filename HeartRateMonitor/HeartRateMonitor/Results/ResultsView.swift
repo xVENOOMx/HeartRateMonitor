@@ -13,22 +13,40 @@ struct ResultsView: View {
     @Query(sort: [SortDescriptor(\HeartRateMeasurement.timestamp, order: .reverse)])
     private var measurements: [HeartRateMeasurement]
     @State private var showingCameraView = false
-    
+    @State private var viewMode: ViewMode = .minimal
+
+    enum ViewMode: String, CaseIterable {
+        case minimal = "Minimal"
+        case detailed = "Detailed"
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 ScrollView {
-                    LazyVStack(spacing: 20) {
-                        if measurements.isEmpty {
-                            EmptyStateView()
-                        } else {
-                            ForEach(measurements) { measurement in
-                                MeasurementCard(measurement: measurement)
+                    VStack(spacing: 15) {
+                        // View Mode Picker
+                        Picker("View Mode", selection: $viewMode) {
+                            ForEach(ViewMode.allCases, id: \.self) { mode in
+                                Text(mode.rawValue).tag(mode)
                             }
                         }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+                        .padding(.top, 10)
+
+                        LazyVStack(spacing: 20) {
+                            if measurements.isEmpty {
+                                EmptyStateView()
+                            } else {
+                                ForEach(measurements) { measurement in
+                                    MeasurementCard(measurement: measurement, viewMode: viewMode)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 100)
                     }
-                    .padding()
-                    .padding(.bottom, 100)
                 }
                 
                 VStack {
