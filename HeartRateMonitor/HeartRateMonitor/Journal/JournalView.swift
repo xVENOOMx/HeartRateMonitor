@@ -195,7 +195,8 @@ struct CalendarDayCell: View {
             Text("\(calendar.component(.day, from: date))")
                 .font(.system(size: 16))
                 .fontWeight(isToday ? .bold : .regular)
-                .foregroundStyle(isCurrentMonth ? .primary : .secondary.opacity(0.5))
+                .foregroundStyle(isCurrentMonth ? .primary : .secondary)
+                .opacity(isCurrentMonth ? 1.0 : 0.5)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
                 .background(
