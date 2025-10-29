@@ -14,13 +14,11 @@ struct CameraView: View {
     @StateObject private var cameraManager = CameraManager()
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showDetailedView = false
-    @State private var savedMeasurement: HeartRateMeasurement?
+    var onMeasurementComplete: ((HeartRateMeasurement) -> Void)?
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
+        ZStack {
+            Color.black.ignoresSafeArea()
             
             // Live camera preview with green filter overlay for user feedback
             CameraPreviewView(session: cameraManager.captureSession)
@@ -115,13 +113,18 @@ struct CameraView: View {
                         Button {
                             if let measurement = cameraManager.finalMeasurement {
                                 saveMeasurement(measurement)
-                                savedMeasurement = measurement
 
                                 if let heartRate = measurement.heartRate {
                                     HealthKitManager.shared.saveHeartRate(heartRate)
                                 }
 
-                                showDetailedView = true
+                                // Dismiss camera view first
+                                isPresented = false
+
+                                // Then notify parent to show detailed view
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    onMeasurementComplete?(measurement)
+                                }
                             }
                         } label: {
                             Text("See Results")
@@ -270,25 +273,6 @@ struct CameraView: View {
             @unknown default:
                 break
             }
-        }
-        .navigationDestination(isPresented: $showDetailedView) {
-            if let measurement = savedMeasurement {
-                MeasurementDetailedView(measurement: measurement)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button {
-                                showDetailedView = false
-                                isPresented = false
-                            } label: {
-                                HStack {
-                                    Image(systemName: "chevron.left")
-                                    Text("Home")
-                                }
-                            }
-                        }
-                    }
-            }
-        }
         }
     }
     
