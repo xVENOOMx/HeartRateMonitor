@@ -385,9 +385,9 @@ struct StepCounterCard: View {
 
                 // Other metrics (stacked on right)
                 VStack(spacing: 12) {
-                    MetricRow(icon: "flame.fill", value: "\(calories)", unit: "Cal", color: .orange)
-                    MetricRow(icon: "map.fill", value: String(format: "%.2f", distance), unit: "km", color: .green)
-                    MetricRow(icon: "figure.stairs", value: "\(flights)", unit: "Floors", color: .purple)
+                    ActivityMetricRow(icon: "flame.fill", value: "\(calories)", unit: "Cal", color: .orange)
+                    ActivityMetricRow(icon: "map.fill", value: String(format: "%.2f", distance), unit: "km", color: .green)
+                    ActivityMetricRow(icon: "figure.stairs", value: "\(flights)", unit: "Floors", color: .purple)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -411,7 +411,7 @@ struct StepCounterCard: View {
     }
 }
 
-struct MetricRow: View {
+struct ActivityMetricRow: View {
     let icon: String
     let value: String
     let unit: String
