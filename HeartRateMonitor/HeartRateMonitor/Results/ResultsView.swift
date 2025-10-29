@@ -13,12 +13,6 @@ struct ResultsView: View {
     @Query(sort: [SortDescriptor(\HeartRateMeasurement.timestamp, order: .reverse)])
     private var measurements: [HeartRateMeasurement]
     @State private var showingCameraView = false
-    @State private var viewMode: ViewMode = .minimal
-
-    enum ViewMode: String, CaseIterable {
-        case minimal = "Minimal"
-        case detailed = "Detailed"
-    }
 
     var body: some View {
         NavigationStack {
@@ -29,7 +23,12 @@ struct ResultsView: View {
                             EmptyStateView()
                         } else {
                             ForEach(measurements) { measurement in
-                                MeasurementCard(measurement: measurement, viewMode: viewMode)
+                                NavigationLink {
+                                    MeasurementDetailedView(measurement: measurement)
+                                } label: {
+                                    MeasurementCard(measurement: measurement, isMinimal: true)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                     }
@@ -60,21 +59,6 @@ struct ResultsView: View {
                 }
             }
             .navigationTitle("Heart Rate")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Picker("View Mode", selection: $viewMode) {
-                            ForEach(ViewMode.allCases, id: \.self) { mode in
-                                Label(mode.rawValue, systemImage: mode == .minimal ? "list.bullet" : "list.bullet.rectangle")
-                                    .tag(mode)
-                            }
-                        }
-                        .pickerStyle(.inline)
-                    } label: {
-                        Label(viewMode.rawValue, systemImage: viewMode == .minimal ? "list.bullet" : "list.bullet.rectangle")
-                    }
-                }
-            }
             .fullScreenCover(isPresented: $showingCameraView) {
                 CameraView(isPresented: $showingCameraView)
             }

@@ -9,7 +9,7 @@ import SwiftUI
 
 struct MeasurementCard: View {
     let measurement: HeartRateMeasurement
-    let viewMode: ResultsView.ViewMode
+    let isMinimal: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -37,12 +37,8 @@ struct MeasurementCard: View {
 
             Divider()
 
-            // Content based on view mode
-            if viewMode == .minimal {
-                minimalView
-            } else {
-                detailedView
-            }
+            // Always show minimal view
+            minimalView
         }
         .padding()
         .background(Color(.secondarySystemBackground))
@@ -284,24 +280,7 @@ struct DetailedMetricRow: View {
             signalQuality: 0.25,
             confidence: "Excellent"
         ),
-        viewMode: .minimal
-    )
-    .padding()
-}
-
-#Preview("Detailed View") {
-    MeasurementCard(
-        measurement: HeartRateMeasurement(
-            heartRate: 72,
-            hrv: 55,
-            sdnn: 48,
-            stress: 35,
-            energy: 75,
-            plus: 82,
-            signalQuality: 0.25,
-            confidence: "Excellent"
-        ),
-        viewMode: .detailed
+        isMinimal: true
     )
     .padding()
 }
