@@ -24,34 +24,22 @@ struct ResultsView: View {
         NavigationStack {
             ZStack {
                 ScrollView {
-                    VStack(spacing: 15) {
-                        // View Mode Picker
-                        Picker("View Mode", selection: $viewMode) {
-                            ForEach(ViewMode.allCases, id: \.self) { mode in
-                                Text(mode.rawValue).tag(mode)
+                    LazyVStack(spacing: 20) {
+                        if measurements.isEmpty {
+                            EmptyStateView()
+                        } else {
+                            ForEach(measurements) { measurement in
+                                MeasurementCard(measurement: measurement, viewMode: viewMode)
                             }
                         }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-                        .padding(.top, 10)
-
-                        LazyVStack(spacing: 20) {
-                            if measurements.isEmpty {
-                                EmptyStateView()
-                            } else {
-                                ForEach(measurements) { measurement in
-                                    MeasurementCard(measurement: measurement, viewMode: viewMode)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.bottom, 100)
                     }
+                    .padding()
+                    .padding(.bottom, 100)
                 }
-                
+
                 VStack {
                     Spacer()
-                    
+
                     Button {
                         showingCameraView = true
                     } label: {
@@ -72,6 +60,21 @@ struct ResultsView: View {
                 }
             }
             .navigationTitle("Heart Rate")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Picker("View Mode", selection: $viewMode) {
+                            ForEach(ViewMode.allCases, id: \.self) { mode in
+                                Label(mode.rawValue, systemImage: mode == .minimal ? "list.bullet" : "list.bullet.rectangle")
+                                    .tag(mode)
+                            }
+                        }
+                        .pickerStyle(.inline)
+                    } label: {
+                        Label(viewMode.rawValue, systemImage: viewMode == .minimal ? "list.bullet" : "list.bullet.rectangle")
+                    }
+                }
+            }
             .fullScreenCover(isPresented: $showingCameraView) {
                 CameraView(isPresented: $showingCameraView)
             }
