@@ -138,29 +138,58 @@ struct CameraView: View {
                     .padding()
                 } else if cameraManager.waitingForFinger {
                     // Waiting for finger state
-                    VStack(spacing: 40) {
+                    VStack(spacing: 30) {
                         Text("Place Your Finger")
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
-                        
+
                         VStack(spacing: 20) {
                             Image(systemName: "hand.point.up.left.fill")
                                 .font(.system(size: 80))
                                 .foregroundStyle(.white.opacity(0.8))
                                 .symbolEffect(.pulse, options: .repeating)
-                            
-                            VStack(spacing: 15) {
-                                Text("Position your finger over")
-                                    .font(.body)
-                                    .foregroundStyle(.white)
-                                Text("the camera and flash")
-                                    .font(.body)
-                                    .foregroundStyle(.white)
-                                Text("Cover completely and hold steady")
-                                    .font(.body)
-                                    .foregroundStyle(.white.opacity(0.8))
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("1.")
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.white)
+                                    Text("Cover the camera and flash completely with your fingertip")
+                                        .font(.body)
+                                        .foregroundStyle(.white)
+                                }
+
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("2.")
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.white)
+                                    Text("Press gently but firmly - not too hard")
+                                        .font(.body)
+                                        .foregroundStyle(.white)
+                                }
+
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("3.")
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.white)
+                                    Text("Keep your hand steady and relaxed")
+                                        .font(.body)
+                                        .foregroundStyle(.white)
+                                }
+
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("💡")
+                                        .font(.body)
+                                    Text("Tip: Rest your hand on a surface for stability")
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.7))
+                                }
                             }
+                            .padding(.horizontal, 30)
                         }
                     }
                 } else if cameraManager.isRecording {
