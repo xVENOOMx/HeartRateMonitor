@@ -101,6 +101,7 @@ struct HorizontalCalendarView: View {
     @Binding var selectedDate: Date
     @State private var currentMonth = Date()
     @Query private var measurements: [HeartRateMeasurement]
+    @Query private var activities: [DailyActivity]
 
     private let calendar = Calendar.current
 
@@ -113,6 +114,17 @@ struct HorizontalCalendarView: View {
             }
         }
         return dates
+    }
+
+    var moodsByDate: [Date: String] {
+        var moods: [Date: String] = [:]
+        for activity in activities {
+            if let date = activity.date, let mood = activity.mood {
+                let day = calendar.startOfDay(for: date)
+                moods[day] = mood
+            }
+        }
+        return moods
     }
 
     var body: some View {
@@ -151,7 +163,8 @@ struct HorizontalCalendarView: View {
                             date: date,
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             hasData: datesWithData.contains(calendar.startOfDay(for: date)),
-                            isToday: calendar.isDateInToday(date)
+                            isToday: calendar.isDateInToday(date),
+                            mood: moodsByDate[calendar.startOfDay(for: date)]
                         ) {
                             selectedDate = date
                         }
@@ -191,6 +204,7 @@ struct DayButton: View {
     let isSelected: Bool
     let hasData: Bool
     let isToday: Bool
+    let mood: String?
     let action: () -> Void
 
     private let calendar = Calendar.current
@@ -207,9 +221,16 @@ struct DayButton: View {
                     .fontWeight(isSelected || isToday ? .bold : .regular)
                     .foregroundStyle(isSelected ? .white : .primary)
 
-                Circle()
-                    .fill(hasData ? (isSelected ? Color.white : Color.red) : Color.clear)
-                    .frame(width: 4, height: 4)
+                // Show mood icon if mood exists, otherwise show dot
+                if let mood = mood, !mood.isEmpty {
+                    Image(systemName: moodIcon(for: mood))
+                        .font(.caption2)
+                        .foregroundStyle(isSelected ? .white : moodColor(for: mood))
+                } else {
+                    Circle()
+                        .fill(hasData ? (isSelected ? Color.white : Color.red) : Color.clear)
+                        .frame(width: 4, height: 4)
+                }
             }
             .frame(width: 50, height: 70)
             .background(
@@ -220,6 +241,28 @@ struct DayButton: View {
                             .stroke(isToday && !isSelected ? Color.blue : Color.clear, lineWidth: 2)
                     )
             )
+        }
+    }
+
+    private func moodIcon(for mood: String) -> String {
+        switch mood {
+        case "Happy": return "face.smiling.fill"
+        case "Calm": return "leaf.fill"
+        case "Okay": return "face.dashed"
+        case "Sad": return "cloud.rain.fill"
+        case "Tired": return "bed.double.fill"
+        default: return "circle.fill"
+        }
+    }
+
+    private func moodColor(for mood: String) -> Color {
+        switch mood {
+        case "Happy": return .yellow
+        case "Calm": return .green
+        case "Okay": return .blue
+        case "Sad": return .gray
+        case "Tired": return .purple
+        default: return .red
         }
     }
 }
@@ -365,7 +408,15 @@ struct StepCounterCard: View {
                 .fontWeight(.semibold)
 
             HStack(spacing: 20) {
-                // Steps (larger, on left)
+                // Other metrics (on left)
+                VStack(spacing: 12) {
+                    ActivityMetricRow(icon: "flame.fill", value: "\(calories)", unit: "Cal", color: .orange)
+                    ActivityMetricRow(icon: "map.fill", value: String(format: "%.2f", distance), unit: "km", color: .green)
+                    ActivityMetricRow(icon: "figure.stairs", value: "\(flights)", unit: "Floors", color: .purple)
+                }
+                .frame(maxWidth: .infinity)
+
+                // Steps (larger, on right)
                 VStack(spacing: 8) {
                     Image(systemName: "figure.walk")
                         .font(.largeTitle)
@@ -382,14 +433,6 @@ struct StepCounterCard: View {
                 .padding()
                 .background(Color(.tertiarySystemBackground))
                 .cornerRadius(12)
-
-                // Other metrics (stacked on right)
-                VStack(spacing: 12) {
-                    ActivityMetricRow(icon: "flame.fill", value: "\(calories)", unit: "Cal", color: .orange)
-                    ActivityMetricRow(icon: "map.fill", value: String(format: "%.2f", distance), unit: "km", color: .green)
-                    ActivityMetricRow(icon: "figure.stairs", value: "\(flights)", unit: "Floors", color: .purple)
-                }
-                .frame(maxWidth: .infinity)
             }
         }
         .padding()
@@ -407,7 +450,16 @@ struct StepCounterCard: View {
         Task {
             let healthKit = HealthKitManager.shared
             steps = await healthKit.getStepsForDate(selectedDate)
-            calories = await healthKit.getCaloriesForDate(selectedDate)
+            let fetchedCalories = await healthKit.getCaloriesForDate(selectedDate)
+
+            // Calculate from steps if HealthKit returns 0
+            if fetchedCalories == 0 && steps > 0 {
+                // Average: ~0.04 calories per step for typical adult
+                calories = Int(Double(steps) * 0.04)
+            } else {
+                calories = fetchedCalories
+            }
+
             distance = await healthKit.getDistanceForDate(selectedDate)
             flights = await healthKit.getFlightsForDate(selectedDate)
         }
