@@ -280,7 +280,7 @@ struct MetricDetailCard: View {
                 EmptyView()
             }
             .gaugeStyle(.accessoryLinear)
-            .tint(.white)
+            .tint(color)
 
             Divider()
 

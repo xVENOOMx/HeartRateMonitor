@@ -29,7 +29,9 @@ class CameraManager: NSObject, ObservableObject {
     @Published var showInterruptedOverlay = false
     @Published var showNoFingerTimeout = false
     @Published var waitingForFinger = false
-    
+    @Published var showErrorAlert = false
+    @Published var errorMessage = ""
+
     var captureSession: AVCaptureSession?
     private var videoOutput: AVCaptureVideoDataOutput?
     private let videoOutputQueue = DispatchQueue(label: "VideoOutputQueue", qos: .userInitiated)
@@ -298,13 +300,9 @@ class CameraManager: NSObject, ObservableObject {
         let session = AVCaptureSession()
         session.sessionPreset = .high
         
-        // Try regular camera first, fallback to ultra-wide
-        // Regular camera provides better PPG signal quality with proper settings
-        let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) ??
-                     AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back)
-
-        guard let selectedCamera = camera else {
-            print("❌ Camera not available")
+        // Use Ultra-Wide Camera (0.5x zoom)
+        guard let ultraWide = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back) else {
+            print("❌ Ultra-Wide Camera not available")
             Task { @MainActor in
                 self.signalQualityText = "Camera not available"
                 self.signalQualityColor = .red
@@ -312,46 +310,46 @@ class CameraManager: NSObject, ObservableObject {
             return
         }
 
-        self.selectedCameraDevice = selectedCamera
-        print("✅ Using camera: \(selectedCamera.localizedName)")
+        self.selectedCameraDevice = ultraWide
+        print("✅ Using Ultra-Wide Camera (0.5x zoom)")
 
         do {
-            try selectedCamera.lockForConfiguration()
+            try ultraWide.lockForConfiguration()
 
             // Lock to exactly 30 fps for stable sampling
             let frameDuration = CMTime(value: 1, timescale: 30)
-            selectedCamera.activeVideoMinFrameDuration = frameDuration
-            selectedCamera.activeVideoMaxFrameDuration = frameDuration
+            ultraWide.activeVideoMinFrameDuration = frameDuration
+            ultraWide.activeVideoMaxFrameDuration = frameDuration
 
             // FIXED: Lock exposure instead of auto - critical for PPG stability
             // Set to a moderate exposure duration for finger measurements
-            if selectedCamera.isExposureModeSupported(.custom) {
+            if ultraWide.isExposureModeSupported(.custom) {
                 let exposureDuration = CMTime(value: 1, timescale: 60) // 1/60s
                 let iso: Float = 100.0  // Low ISO for less noise
-                selectedCamera.setExposureModeCustom(duration: exposureDuration, iso: iso)
-            } else if selectedCamera.isExposureModeSupported(.locked) {
-                selectedCamera.exposureMode = .locked
+                ultraWide.setExposureModeCustom(duration: exposureDuration, iso: iso)
+            } else if ultraWide.isExposureModeSupported(.locked) {
+                ultraWide.exposureMode = .locked
             }
 
             // FIXED: Lock white balance to prevent color drift
-            if selectedCamera.isWhiteBalanceModeSupported(.locked) {
+            if ultraWide.isWhiteBalanceModeSupported(.locked) {
                 // Set to warm white balance (good for skin/blood detection)
                 let warmTemp: Float = 5000 // Kelvin - warm white
                 let tint: Float = 0
-                let gains = selectedCamera.deviceWhiteBalanceGains(for: AVCaptureDevice.WhiteBalanceTemperatureAndTintValues(temperature: warmTemp, tint: tint))
-                selectedCamera.setWhiteBalanceModeLocked(with: gains)
+                let gains = ultraWide.deviceWhiteBalanceGains(for: AVCaptureDevice.WhiteBalanceTemperatureAndTintValues(temperature: warmTemp, tint: tint))
+                ultraWide.setWhiteBalanceModeLocked(with: gains)
             }
 
             // FIXED: Lock focus at close distance (macro range)
-            if selectedCamera.isFocusModeSupported(.locked) {
-                selectedCamera.focusMode = .locked
+            if ultraWide.isFocusModeSupported(.locked) {
+                ultraWide.focusMode = .locked
                 // Set to minimum focus distance for finger
-                selectedCamera.setFocusModeLocked(lensPosition: 0.0) // 0.0 = closest focus
+                ultraWide.setFocusModeLocked(lensPosition: 0.0) // 0.0 = closest focus
             }
 
-            selectedCamera.unlockForConfiguration()
+            ultraWide.unlockForConfiguration()
 
-            let input = try AVCaptureDeviceInput(device: selectedCamera)
+            let input = try AVCaptureDeviceInput(device: ultraWide)
             if session.canAddInput(input) {
                 session.addInput(input)
             }
@@ -436,77 +434,129 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     // MARK: - Enhanced Signal Processing
-    
+
     private func processHeartRate() {
-        guard greenChannelValues.count >= 150 else {
-            signalQualityText = "Not enough data"
-            signalQualityColor = .red
-            return
+        // Wrap entire processing in error handling
+        do {
+            guard greenChannelValues.count >= 150 else {
+                showError("Not enough data collected. Please try again.")
+                return
+            }
+
+            print("\n" + String(repeating: "=", count: 70))
+            print("🔬 PROCESSING HEART RATE")
+            print(String(repeating: "=", count: 70))
+            print("📊 Raw samples: \(greenChannelValues.count)")
+            print("   Perfusion Index: \(String(format: "%.2f%%", perfusionIndex))")
+            print("   SNR: \(String(format: "%.1f dB", signalToNoiseRatio))")
+
+            // Interpolate to 200 Hz for precision
+            let interpolated = interpolateToHigherRate(greenChannelValues)
+            guard !interpolated.isEmpty else {
+                throw ProcessingError.interpolationFailed
+            }
+            print("   Interpolated to: \(interpolated.count) samples at \(Int(targetSamplingRate))Hz")
+
+            // Enhanced filtering with FIXED parameters
+            let filtered = optimizedButterworthFilter(interpolated)
+            guard !filtered.isEmpty else {
+                throw ProcessingError.filteringFailed
+            }
+            print("   Filtered signal length: \(filtered.count)")
+
+            // Advanced peak detection with FIXED validation
+            let peaks = detectPeaksWithValidation(filtered, samplingRate: targetSamplingRate)
+
+            guard peaks.count >= 5 else {
+                print("❌ Only \(peaks.count) peaks detected (need ≥5)")
+                showError("Unable to detect heartbeat. Please ensure your finger covers the camera completely and hold steady.")
+                return
+            }
+
+            print("   ✅ Valid peaks detected: \(peaks.count)")
+
+            // Calculate metrics with validation
+            let heartRate = calculateHeartRate(peaks: peaks, samplingRate: targetSamplingRate)
+            guard heartRate.isFinite && heartRate > 0 else {
+                throw ProcessingError.invalidHeartRate
+            }
+
+            let hrv = calculateHRV(peaks: peaks, samplingRate: targetSamplingRate)
+            let sdnn = calculateSDNN(peaks: peaks, samplingRate: targetSamplingRate)
+            let stress = calculateStress(hrv: hrv, heartRate: heartRate)
+            let energy = calculateEnergy(hrv: hrv, heartRate: heartRate)
+            let plus = calculatePlusScore(heartRate: heartRate, hrv: hrv, sdnn: sdnn)
+
+            let confidence = determineConfidence(snr: signalToNoiseRatio, perfusion: perfusionIndex)
+
+            print("\n📈 RESULTS:")
+            print("   Heart Rate: \(Int(heartRate)) BPM")
+            print("   HRV (RMSSD): \(String(format: "%.1f ms", hrv))")
+            print("   SDNN: \(String(format: "%.1f ms", sdnn))")
+            print("   Stress: \(Int(stress))%")
+            print("   Energy: \(Int(energy))%")
+            print("   Plus Score: \(Int(plus))")
+            print("   Confidence: \(confidence)")
+            print(String(repeating: "=", count: 70) + "\n")
+
+            let measurement = HeartRateMeasurement(
+                heartRate: heartRate,
+                hrv: hrv,
+                sdnn: sdnn,
+                stress: stress,
+                energy: energy,
+                plus: plus,
+                signalQuality: signalQuality,
+                confidence: confidence
+            )
+
+            let successFeedback = UINotificationFeedbackGenerator()
+            successFeedback.notificationOccurred(.success)
+
+            self.finalMeasurement = measurement
+            self.measurementComplete = true
+
+        } catch let error as ProcessingError {
+            print("❌ Processing error: \(error)")
+            showError(error.localizedDescription)
+        } catch {
+            print("❌ Unexpected error: \(error)")
+            showError("An unexpected error occurred during measurement. Please try again.")
         }
-        
-        print("\n" + String(repeating: "=", count: 70))
-        print("🔬 PROCESSING HEART RATE")
-        print(String(repeating: "=", count: 70))
-        print("📊 Raw samples: \(greenChannelValues.count)")
-        print("   Perfusion Index: \(String(format: "%.2f%%", perfusionIndex))")
-        print("   SNR: \(String(format: "%.1f dB", signalToNoiseRatio))")
-        
-        // Interpolate to 200 Hz for precision
-        let interpolated = interpolateToHigherRate(greenChannelValues)
-        print("   Interpolated to: \(interpolated.count) samples at \(Int(targetSamplingRate))Hz")
-        
-        // Enhanced filtering with FIXED parameters
-        let filtered = optimizedButterworthFilter(interpolated)
-        print("   Filtered signal length: \(filtered.count)")
-        
-        // Advanced peak detection with FIXED validation
-        let peaks = detectPeaksWithValidation(filtered, samplingRate: targetSamplingRate)
-        
-        guard peaks.count >= 5 else {
-            print("❌ Only \(peaks.count) peaks detected (need ≥5)")
-            signalQualityText = "Unable to detect heartbeat"
-            signalQualityColor = .red
-            return
+    }
+
+    private func showError(_ message: String) {
+        errorMessage = message
+        showErrorAlert = true
+        signalQualityText = "Error occurred"
+        signalQualityColor = .red
+    }
+
+    func resetAfterError() {
+        showErrorAlert = false
+        errorMessage = ""
+        resetSession()
+    }
+
+    // Processing error types
+    enum ProcessingError: LocalizedError {
+        case interpolationFailed
+        case filteringFailed
+        case invalidHeartRate
+        case insufficientPeaks
+
+        var errorDescription: String? {
+            switch self {
+            case .interpolationFailed:
+                return "Signal processing failed. Please try again."
+            case .filteringFailed:
+                return "Signal filtering failed. Please try again."
+            case .invalidHeartRate:
+                return "Invalid heart rate detected. Please try again with better finger placement."
+            case .insufficientPeaks:
+                return "Unable to detect heartbeat. Please hold your finger steady and press firmly."
+            }
         }
-        
-        print("   ✅ Valid peaks detected: \(peaks.count)")
-        
-        // Calculate metrics
-        let heartRate = calculateHeartRate(peaks: peaks, samplingRate: targetSamplingRate)
-        let hrv = calculateHRV(peaks: peaks, samplingRate: targetSamplingRate)
-        let sdnn = calculateSDNN(peaks: peaks, samplingRate: targetSamplingRate)
-        let stress = calculateStress(hrv: hrv, heartRate: heartRate)
-        let energy = calculateEnergy(hrv: hrv, heartRate: heartRate)
-        let plus = calculatePlusScore(heartRate: heartRate, hrv: hrv, sdnn: sdnn)
-        
-        let confidence = determineConfidence(snr: signalToNoiseRatio, perfusion: perfusionIndex)
-        
-        print("\n📈 RESULTS:")
-        print("   Heart Rate: \(Int(heartRate)) BPM")
-        print("   HRV (RMSSD): \(String(format: "%.1f ms", hrv))")
-        print("   SDNN: \(String(format: "%.1f ms", sdnn))")
-        print("   Stress: \(Int(stress))%")
-        print("   Energy: \(Int(energy))%")
-        print("   Plus Score: \(Int(plus))")
-        print("   Confidence: \(confidence)")
-        print(String(repeating: "=", count: 70) + "\n")
-        
-        let measurement = HeartRateMeasurement(
-            heartRate: heartRate,
-            hrv: hrv,
-            sdnn: sdnn,
-            stress: stress,
-            energy: energy,
-            plus: plus,
-            signalQuality: signalQuality,
-            confidence: confidence
-        )
-        
-        let successFeedback = UINotificationFeedbackGenerator()
-        successFeedback.notificationOccurred(.success)
-        
-        self.finalMeasurement = measurement
-        self.measurementComplete = true
     }
     
     // Cubic spline interpolation to 200 Hz

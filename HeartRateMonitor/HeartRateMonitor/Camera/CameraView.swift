@@ -277,6 +277,25 @@ struct CameraView: View {
                 .transition(.opacity)
                 .zIndex(999)
             }
+
+            // Error Alert Overlay
+            if cameraManager.showErrorAlert {
+                ErrorAlertOverlay(
+                    errorMessage: cameraManager.errorMessage,
+                    onTryAgain: {
+                        cameraManager.resetAfterError()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            cameraManager.startRecording()
+                        }
+                    },
+                    onCancel: {
+                        cameraManager.resetAfterError()
+                        isPresented = false
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(1000)
+            }
         }
         .onAppear {
             cameraManager.startSession()
@@ -397,6 +416,57 @@ struct NoFingerTimeoutOverlay: View {
                     }
                     .padding(.horizontal, 40)
                     
+                    Button(action: onCancel) {
+                        Text("Cancel")
+                            .font(.system(size: 18, weight: .regular))
+                            .foregroundStyle(.gray)
+                    }
+                    .frame(height: 44)
+                }
+                .padding(.top, 10)
+            }
+        }
+    }
+}
+
+// Error Alert Overlay
+struct ErrorAlertOverlay: View {
+    let errorMessage: String
+    let onTryAgain: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.95)
+                .ignoresSafeArea()
+
+            VStack(spacing: 30) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 80))
+                    .foregroundStyle(.red)
+
+                Text("Measurement Error")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text(errorMessage)
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                VStack(spacing: 15) {
+                    Button(action: onTryAgain) {
+                        Text("Try Again")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(Color.green)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 40)
+
                     Button(action: onCancel) {
                         Text("Cancel")
                             .font(.system(size: 18, weight: .regular))
