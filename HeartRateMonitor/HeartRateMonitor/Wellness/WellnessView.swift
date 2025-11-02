@@ -398,6 +398,9 @@ struct StepCounterCard: View {
         .onAppear {
             loadStepData()
         }
+        .onChange(of: selectedDate) { oldValue, newValue in
+            loadStepData()
+        }
     }
 
     private func loadStepData() {

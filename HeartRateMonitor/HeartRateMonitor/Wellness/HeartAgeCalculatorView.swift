@@ -10,16 +10,17 @@ import SwiftUI
 struct HeartAgeCalculatorView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var age = "30"
+    @State private var age = ""
     @State private var sex = "Male"
-    @State private var systolicBP = "120"
+    @State private var systolicBP = ""
     @State private var totalCholesterol = "190"
     @State private var hdlCholesterol = "50"
-    @State private var weight = "70"
-    @State private var height = "170"
+    @State private var weight = ""
+    @State private var height = ""
     @State private var isSmoker = false
     @State private var hasDiabetes = false
     @State private var calculatedHeartAge: Int?
+    @State private var isLoadingData = true
 
     var bmi: Double {
         guard let w = Double(weight), let h = Double(height), h > 0 else { return 25 }
@@ -162,6 +163,43 @@ struct HeartAgeCalculatorView: View {
                     }
                 }
             }
+            .onAppear {
+                loadHealthKitData()
+            }
+        }
+    }
+
+    private func loadHealthKitData() {
+        Task {
+            isLoadingData = true
+
+            // Load age
+            if let userAge = await HealthKitManager.shared.getUserAge() {
+                age = String(userAge)
+            }
+
+            // Load sex
+            if let userSex = await HealthKitManager.shared.getUserSex() {
+                sex = userSex
+            }
+
+            // Load weight
+            if let userWeight = await HealthKitManager.shared.getUserWeight() {
+                weight = String(format: "%.1f", userWeight)
+            }
+
+            // Load height
+            if let userHeight = await HealthKitManager.shared.getUserHeight() {
+                height = String(format: "%.0f", userHeight)
+            }
+
+            // Load blood pressure
+            let bp = await HealthKitManager.shared.getUserBloodPressure()
+            if let systolic = bp.systolic {
+                systolicBP = String(format: "%.0f", systolic)
+            }
+
+            isLoadingData = false
         }
     }
 

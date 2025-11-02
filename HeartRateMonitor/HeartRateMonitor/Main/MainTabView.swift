@@ -31,14 +31,21 @@ struct MainTabView: View {
                             Label("Journal", systemImage: "book.fill")
                         }
 
-                    WellnessView()
+                    // Hidden spacer for center button
+                    Color.clear
                         .tag(2)
+                        .tabItem {
+                            Label("", systemImage: "")
+                        }
+
+                    WellnessView()
+                        .tag(3)
                         .tabItem {
                             Label("Wellness", systemImage: "heart.text.square")
                         }
 
                     SettingsView()
-                        .tag(3)
+                        .tag(4)
                         .tabItem {
                             Label("Settings", systemImage: "gearshape.fill")
                         }

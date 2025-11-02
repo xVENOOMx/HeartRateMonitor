@@ -194,4 +194,79 @@ class HealthKitManager {
             healthStore.execute(query)
         }
     }
+
+    // MARK: - User Health Data for Heart Age
+
+    func getUserAge() async -> Int? {
+        do {
+            let dateOfBirth = try healthStore.dateOfBirthComponents()
+            let calendar = Calendar.current
+            let now = Date()
+            let ageComponents = calendar.dateComponents([.year], from: dateOfBirth.date ?? now, to: now)
+            return ageComponents.year
+        } catch {
+            return nil
+        }
+    }
+
+    func getUserSex() async -> String? {
+        do {
+            let biologicalSex = try healthStore.biologicalSex()
+            switch biologicalSex.biologicalSex {
+            case .male:
+                return "Male"
+            case .female:
+                return "Female"
+            default:
+                return nil
+            }
+        } catch {
+            return nil
+        }
+    }
+
+    func getUserWeight() async -> Double? {
+        guard let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else {
+            return nil
+        }
+        return await getMostRecentQuantity(type: weightType, unit: .gramUnit(with: .kilo))
+    }
+
+    func getUserHeight() async -> Double? {
+        guard let heightType = HKQuantityType.quantityType(forIdentifier: .height) else {
+            return nil
+        }
+        let meters = await getMostRecentQuantity(type: heightType, unit: .meter())
+        return meters.map { $0 * 100 } // Convert to centimeters
+    }
+
+    func getUserBloodPressure() async -> (systolic: Double?, diastolic: Double?) {
+        guard let systolicType = HKQuantityType.quantityType(forIdentifier: .bloodPressureSystolic),
+              let diastolicType = HKQuantityType.quantityType(forIdentifier: .bloodPressureDiastolic) else {
+            return (nil, nil)
+        }
+
+        async let systolic = getMostRecentQuantity(type: systolicType, unit: .millimeterOfMercury())
+        async let diastolic = getMostRecentQuantity(type: diastolicType, unit: .millimeterOfMercury())
+
+        return await (systolic, diastolic)
+    }
+
+    private func getMostRecentQuantity(type: HKQuantityType, unit: HKUnit) async -> Double? {
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { _, samples, _ in
+                guard let sample = samples?.first as? HKQuantitySample else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let value = sample.quantity.doubleValue(for: unit)
+                continuation.resume(returning: value)
+            }
+
+            healthStore.execute(query)
+        }
+    }
 }
