@@ -29,7 +29,9 @@ class CameraManager: NSObject, ObservableObject {
     @Published var showInterruptedOverlay = false
     @Published var showNoFingerTimeout = false
     @Published var waitingForFinger = false
-    
+    @Published var showErrorOverlay = false
+    @Published var errorMessage = ""
+
     var captureSession: AVCaptureSession?
     private var videoOutput: AVCaptureVideoDataOutput?
     private let videoOutputQueue = DispatchQueue(label: "VideoOutputQueue", qos: .userInitiated)
@@ -250,6 +252,24 @@ class CameraManager: NSObject, ObservableObject {
         showNoFingerTimeout = false
         stopRecording()
     }
+
+    func retryAfterError() {
+        print("🔄 Retrying after error")
+        showErrorOverlay = false
+        errorMessage = ""
+        resetSession()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            self.startRecording()
+        }
+    }
+
+    func cancelAfterError() {
+        print("❌ User canceled after error")
+        showErrorOverlay = false
+        errorMessage = ""
+        resetSession()
+    }
     
     func stopRecording() {
         guard isRecording else {
@@ -279,17 +299,14 @@ class CameraManager: NSObject, ObservableObject {
                 print("❌ Insufficient data quality")
                 print("   Samples: \(greenChannelValues.count) (need ≥150)")
                 print("   Good pulses: \(goodPulseCount) (need ≥5)")
-                
+
+                // Show error overlay for insufficient data
                 if goodPulseCount < 5 {
-                    signalQualityText = "Could not detect heartbeat - try again"
+                    errorMessage = "Could not detect heartbeat. Please ensure your finger completely covers the camera and flash, and hold steady."
                 } else {
-                    signalQualityText = "Insufficient data - hold steady"
+                    errorMessage = "Insufficient data collected. Please keep your finger steady on the camera and flash throughout the measurement."
                 }
-                signalQualityColor = .red
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    self.recordingProgress = 0
-                }
+                showErrorOverlay = true
             }
         }
     }
@@ -297,46 +314,46 @@ class CameraManager: NSObject, ObservableObject {
     private func setupCaptureSession() {
         let session = AVCaptureSession()
         session.sessionPreset = .high
-        
-        // Use Ultra-Wide Camera (0.5x zoom) - Same as Welltory
-        guard let ultraWide = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back) else {
-            print("❌ Ultra-Wide Camera not available")
+
+        // Use Wide-Angle Camera (1x zoom - standard camera)
+        guard let wideCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
+            print("❌ Wide-Angle Camera not available")
             Task { @MainActor in
-                self.signalQualityText = "Camera not available"
-                self.signalQualityColor = .red
+                self.errorMessage = "Camera not available on this device"
+                self.showErrorOverlay = true
             }
             return
         }
-        
-        self.selectedCameraDevice = ultraWide
-        print("✅ Using Ultra-Wide Camera (0.5x zoom)")
+
+        self.selectedCameraDevice = wideCamera
+        print("✅ Using Wide-Angle Camera (1x zoom)")
         
         do {
-            try ultraWide.lockForConfiguration()
-            
+            try wideCamera.lockForConfiguration()
+
             // Lock to exactly 30 fps
             let frameDuration = CMTime(value: 1, timescale: 30)
-            ultraWide.activeVideoMinFrameDuration = frameDuration
-            ultraWide.activeVideoMaxFrameDuration = frameDuration
-            
+            wideCamera.activeVideoMinFrameDuration = frameDuration
+            wideCamera.activeVideoMaxFrameDuration = frameDuration
+
             // Lock exposure for stable signal
-            if ultraWide.isExposureModeSupported(.locked) {
-                ultraWide.exposureMode = .continuousAutoExposure
+            if wideCamera.isExposureModeSupported(.locked) {
+                wideCamera.exposureMode = .continuousAutoExposure
             }
-            
+
             // Lock white balance
-            if ultraWide.isWhiteBalanceModeSupported(.locked) {
-                ultraWide.whiteBalanceMode = .continuousAutoWhiteBalance
+            if wideCamera.isWhiteBalanceModeSupported(.locked) {
+                wideCamera.whiteBalanceMode = .continuousAutoWhiteBalance
             }
-            
+
             // Lock focus at close distance
-            if ultraWide.isFocusModeSupported(.locked) {
-                ultraWide.focusMode = .autoFocus
+            if wideCamera.isFocusModeSupported(.locked) {
+                wideCamera.focusMode = .autoFocus
             }
-            
-            ultraWide.unlockForConfiguration()
-            
-            let input = try AVCaptureDeviceInput(device: ultraWide)
+
+            wideCamera.unlockForConfiguration()
+
+            let input = try AVCaptureDeviceInput(device: wideCamera)
             if session.canAddInput(input) {
                 session.addInput(input)
             }
@@ -358,6 +375,10 @@ class CameraManager: NSObject, ObservableObject {
             }
         } catch {
             print("Error setting up camera: \(error)")
+            Task { @MainActor in
+                self.errorMessage = "Failed to initialize camera: \(error.localizedDescription)"
+                self.showErrorOverlay = true
+            }
         }
     }
     

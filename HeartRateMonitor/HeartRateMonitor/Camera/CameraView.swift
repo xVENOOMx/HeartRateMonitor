@@ -239,6 +239,22 @@ struct CameraView: View {
                 .transition(.opacity)
                 .zIndex(999)
             }
+
+            // Error Overlay
+            if cameraManager.showErrorOverlay {
+                ErrorOverlay(
+                    errorMessage: cameraManager.errorMessage,
+                    onTryAgain: {
+                        cameraManager.retryAfterError()
+                    },
+                    onCancel: {
+                        cameraManager.cancelAfterError()
+                        isPresented = false
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(999)
+            }
         }
         .onAppear {
             cameraManager.startSession()
@@ -326,27 +342,27 @@ struct SessionInterruptedOverlay: View {
 struct NoFingerTimeoutOverlay: View {
     let onTryAgain: () -> Void
     let onCancel: () -> Void
-    
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.95)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 30) {
                 Image(systemName: "hand.raised.fill")
                     .font(.system(size: 80))
                     .foregroundStyle(.orange)
-                
+
                 Text("No Finger Detected")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(.white)
-                
+
                 Text("Please place your finger on the camera and flash to start the measurement.")
                     .font(.body)
                     .foregroundStyle(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
-                
+
                 VStack(spacing: 15) {
                     Button(action: onTryAgain) {
                         Text("Try Again")
@@ -358,7 +374,58 @@ struct NoFingerTimeoutOverlay: View {
                             .cornerRadius(12)
                     }
                     .padding(.horizontal, 40)
-                    
+
+                    Button(action: onCancel) {
+                        Text("Cancel")
+                            .font(.system(size: 18, weight: .regular))
+                            .foregroundStyle(.gray)
+                    }
+                    .frame(height: 44)
+                }
+                .padding(.top, 10)
+            }
+        }
+    }
+}
+
+// Error Overlay
+struct ErrorOverlay: View {
+    let errorMessage: String
+    let onTryAgain: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.95)
+                .ignoresSafeArea()
+
+            VStack(spacing: 30) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 80))
+                    .foregroundStyle(.red)
+
+                Text("Measurement Failed")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text(errorMessage)
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                VStack(spacing: 15) {
+                    Button(action: onTryAgain) {
+                        Text("Try Again")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(Color.red)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 40)
+
                     Button(action: onCancel) {
                         Text("Cancel")
                             .font(.system(size: 18, weight: .regular))
