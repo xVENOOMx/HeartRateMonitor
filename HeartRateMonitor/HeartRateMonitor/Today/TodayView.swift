@@ -130,10 +130,12 @@ struct TodaySummaryCard: View {
                 Text("Today's Overview")
                     .font(.headline)
                     .fontWeight(.semibold)
+                    .lineLimit(1)
                 Spacer()
                 Text("\(measurements.count) reading\(measurements.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
 
             Divider()
@@ -144,9 +146,11 @@ struct TodaySummaryCard: View {
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundStyle(.red)
+                        .lineLimit(1)
                     Text("Avg BPM")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -158,9 +162,11 @@ struct TodaySummaryCard: View {
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundStyle(.blue)
+                        .lineLimit(1)
                     Text("Avg HRV")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -172,9 +178,11 @@ struct TodaySummaryCard: View {
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundStyle(.orange)
+                        .lineLimit(1)
                     Text("Avg Stress")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
             }
