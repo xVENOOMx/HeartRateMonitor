@@ -23,9 +23,19 @@ struct HeartAgeCalculatorView: View {
     @State private var calculatedHeartAge: Int?
     @State private var isLoadingData = true
     @State private var showingResult = false
+    @State private var validationErrors: Set<Field> = []
+    @State private var resultData: HeartAgeResultData?
 
     enum Field: Hashable {
         case age, systolicBP, totalCholesterol, hdlCholesterol, weight, height
+    }
+
+    struct HeartAgeResultData {
+        let heartAge: Int
+        let actualAge: Int
+        let sex: String
+        let isSmoker: Bool
+        let hasDiabetes: Bool
     }
 
     var bmi: Double {
@@ -47,6 +57,10 @@ struct HeartAgeCalculatorView: View {
                                     .keyboardType(.numberPad)
                                     .textFieldStyle(.roundedBorder)
                                     .focused($focusedField, equals: .age)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .stroke(validationErrors.contains(.age) ? Color.red : Color.clear, lineWidth: 2)
+                                    )
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -68,6 +82,10 @@ struct HeartAgeCalculatorView: View {
                                     .keyboardType(.numberPad)
                                     .textFieldStyle(.roundedBorder)
                                     .focused($focusedField, equals: .systolicBP)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .stroke(validationErrors.contains(.systolicBP) ? Color.red : Color.clear, lineWidth: 2)
+                                    )
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -78,6 +96,10 @@ struct HeartAgeCalculatorView: View {
                                     .keyboardType(.decimalPad)
                                     .textFieldStyle(.roundedBorder)
                                     .focused($focusedField, equals: .totalCholesterol)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .stroke(validationErrors.contains(.totalCholesterol) ? Color.red : Color.clear, lineWidth: 2)
+                                    )
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -88,6 +110,10 @@ struct HeartAgeCalculatorView: View {
                                     .keyboardType(.decimalPad)
                                     .textFieldStyle(.roundedBorder)
                                     .focused($focusedField, equals: .hdlCholesterol)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .stroke(validationErrors.contains(.hdlCholesterol) ? Color.red : Color.clear, lineWidth: 2)
+                                    )
                             }
 
                             HStack(spacing: 15) {
@@ -99,6 +125,10 @@ struct HeartAgeCalculatorView: View {
                                         .keyboardType(.decimalPad)
                                         .textFieldStyle(.roundedBorder)
                                         .focused($focusedField, equals: .weight)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 5)
+                                                .stroke(validationErrors.contains(.weight) ? Color.red : Color.clear, lineWidth: 2)
+                                        )
                                 }
 
                                 VStack(alignment: .leading, spacing: 8) {
@@ -109,6 +139,10 @@ struct HeartAgeCalculatorView: View {
                                         .keyboardType(.decimalPad)
                                         .textFieldStyle(.roundedBorder)
                                         .focused($focusedField, equals: .height)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 5)
+                                                .stroke(validationErrors.contains(.height) ? Color.red : Color.clear, lineWidth: 2)
+                                        )
                                 }
                             }
 
@@ -124,9 +158,7 @@ struct HeartAgeCalculatorView: View {
 
                     Button {
                         focusedField = nil // Dismiss keyboard
-                        if calculateHeartAge() {
-                            showingResult = true
-                        }
+                        validateAndCalculate()
                     } label: {
                         Text("Calculate Heart Age")
                             .font(.headline)
@@ -159,13 +191,13 @@ struct HeartAgeCalculatorView: View {
                 loadHealthKitData()
             }
             .sheet(isPresented: $showingResult) {
-                if let heartAge = calculatedHeartAge, let actualAge = Int(age) {
+                if let data = resultData {
                     HeartAgeResultView(
-                        heartAge: heartAge,
-                        actualAge: actualAge,
-                        sex: sex,
-                        isSmoker: isSmoker,
-                        hasDiabetes: hasDiabetes
+                        heartAge: data.heartAge,
+                        actualAge: data.actualAge,
+                        sex: data.sex,
+                        isSmoker: data.isSmoker,
+                        hasDiabetes: data.hasDiabetes
                     )
                 }
             }
@@ -206,13 +238,55 @@ struct HeartAgeCalculatorView: View {
         }
     }
 
+    private func validateAndCalculate() {
+        // Clear previous validation errors
+        validationErrors.removeAll()
+
+        // Validate required fields
+        if age.isEmpty || Int(age) == nil {
+            validationErrors.insert(.age)
+        }
+        if systolicBP.isEmpty || Double(systolicBP) == nil {
+            validationErrors.insert(.systolicBP)
+        }
+        if totalCholesterol.isEmpty || Double(totalCholesterol) == nil {
+            validationErrors.insert(.totalCholesterol)
+        }
+        if hdlCholesterol.isEmpty || Double(hdlCholesterol) == nil {
+            validationErrors.insert(.hdlCholesterol)
+        }
+        if weight.isEmpty || Double(weight) == nil {
+            validationErrors.insert(.weight)
+        }
+        if height.isEmpty || Double(height) == nil {
+            validationErrors.insert(.height)
+        }
+
+        // If there are validation errors, trigger haptic feedback and return
+        if !validationErrors.isEmpty {
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.error)
+            return
+        }
+
+        // All fields valid, calculate heart age
+        if calculateHeartAge() {
+            showingResult = true
+        }
+    }
+
     private func calculateHeartAge() -> Bool {
         guard let actualAge = Int(age),
               let sbp = Double(systolicBP),
               let tc = Double(totalCholesterol),
-              let hdl = Double(hdlCholesterol) else {
+              let hdl = Double(hdlCholesterol),
+              let w = Double(weight),
+              let h = Double(height) else {
             return false
         }
+
+        // Calculate BMI
+        let calculatedBMI = w / ((h / 100) * (h / 100))
 
         // Formula based on Framingham Heart Study
         let smokingFactor = isSmoker ? (sex == "Male" ? 4.0 : 3.0) : 0.0
@@ -220,11 +294,22 @@ struct HeartAgeCalculatorView: View {
         let bpFactor = (sbp - 120.0) / 10.0
         let cholesterolFactor = (tc - 190.0) / 50.0
         let hdlFactor = -(hdl - 45.0) / 10.0
-        let bmiFactor = (bmi - 25.0) / 5.0
+        let bmiFactor = (calculatedBMI - 25.0) / 5.0
 
         let heartAge = Double(actualAge) + bpFactor + cholesterolFactor + hdlFactor + smokingFactor + diabetesFactor + bmiFactor
 
-        calculatedHeartAge = max(actualAge, Int(heartAge.rounded()))
+        let calculatedAge = max(actualAge, Int(heartAge.rounded()))
+
+        // Store result data
+        resultData = HeartAgeResultData(
+            heartAge: calculatedAge,
+            actualAge: actualAge,
+            sex: sex,
+            isSmoker: isSmoker,
+            hasDiabetes: hasDiabetes
+        )
+
+        calculatedHeartAge = calculatedAge
         return true
     }
 }
