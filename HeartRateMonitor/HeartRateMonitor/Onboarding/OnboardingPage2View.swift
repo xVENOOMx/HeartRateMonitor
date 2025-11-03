@@ -14,21 +14,21 @@ struct OnboardingPage2View: View {
     var body: some View {
         VStack(spacing: 30) {
             Spacer()
-            
+
             Image(systemName: "heart.text.square.fill")
                 .font(.system(size: 100))
                 .foregroundStyle(.pink.gradient)
-            
+
             Text("HealthKit Integration")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-            
-            Text("Save your measurements to Apple Health for comprehensive tracking")
+
+            Text("Access comprehensive health data including heart rate, activity metrics, blood pressure, and more for complete wellness tracking")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            
+
             Button {
                 requestHealthKitAuthorization()
             } label: {
@@ -42,15 +42,16 @@ struct OnboardingPage2View: View {
             }
             .padding(.horizontal)
             .disabled(healthKitAuthorized)
-            
+
             Spacer()
         }
         .padding()
     }
-    
+
     private func requestHealthKitAuthorization() {
-        HealthKitManager.shared.requestAuthorization { success in
-            DispatchQueue.main.async {
+        Task {
+            let success = await HealthKitManager.shared.requestAllPermissions()
+            await MainActor.run {
                 healthKitAuthorized = success
             }
         }

@@ -9,28 +9,86 @@ import SwiftUI
 import SwiftData
 
 struct MainTabView: View {
+    @State private var selectedTab = 0
+    @State private var showingCameraView = false
+    @State private var showDetailedView = false
+    @State private var completedMeasurement: HeartRateMeasurement?
+
     var body: some View {
-        TabView {
-            ResultsView()
-                .tabItem {
-                    Label("Home", systemImage: "heart.fill")
+        NavigationStack {
+            ZStack {
+                // Main content
+                TabView(selection: $selectedTab) {
+                    TodayView()
+                        .tag(0)
+                        .tabItem {
+                            Label("Today", systemImage: "calendar")
+                        }
+
+                    JournalView()
+                        .tag(1)
+                        .tabItem {
+                            Label("Journal", systemImage: "book.fill")
+                        }
+
+                    // Hidden spacer for center button
+                    Color.clear
+                        .tag(2)
+                        .tabItem {
+                            Label("", systemImage: "")
+                        }
+
+                    WellnessView()
+                        .tag(3)
+                        .tabItem {
+                            Label("Wellness", systemImage: "heart.text.square")
+                        }
+
+                    SettingsView()
+                        .tag(4)
+                        .tabItem {
+                            Label("Settings", systemImage: "gearshape.fill")
+                        }
                 }
-            
-            ChartsView()
-                .tabItem {
-                    Label("Charts", systemImage: "chart.xyaxis.line")
+
+                // Center floating button (smaller)
+                VStack {
+                    Spacer()
+
+                    Button {
+                        showingCameraView = true
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color.red.gradient)
+                                .frame(width: 60, height: 60)
+                                .shadow(color: .red.opacity(0.4), radius: 10, x: 0, y: 5)
+
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 26))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .padding(.bottom, 5)
                 }
-            
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
+                .ignoresSafeArea(.keyboard)
+            }
+            .fullScreenCover(isPresented: $showingCameraView) {
+                CameraView(isPresented: $showingCameraView) { measurement in
+                    completedMeasurement = measurement
+                    showDetailedView = true
                 }
-            
+            }
+            .navigationDestination(isPresented: $showDetailedView) {
+                if let measurement = completedMeasurement {
+                    MeasurementDetailedView(measurement: measurement)
+                }
+            }
         }
     }
 }
 
 #Preview {
     MainTabView()
-        .modelContainer(for: HeartRateMeasurement.self, inMemory: true)
+        .modelContainer(for: [HeartRateMeasurement.self, DailyActivity.self], inMemory: true)
 }

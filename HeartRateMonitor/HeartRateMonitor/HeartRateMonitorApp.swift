@@ -15,7 +15,8 @@ struct HeartRateMonitorApp: App {
     
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            HeartRateMeasurement.self
+            HeartRateMeasurement.self,
+            DailyActivity.self
         ])
         
         let modelConfiguration = ModelConfiguration(

@@ -14,7 +14,8 @@ struct CameraView: View {
     @StateObject private var cameraManager = CameraManager()
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    
+    var onMeasurementComplete: ((HeartRateMeasurement) -> Void)?
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -110,13 +111,21 @@ struct CameraView: View {
                         }
                         
                         Button {
-                            saveMeasurement(cameraManager.finalMeasurement!)
-                            
-                            if let heartRate = cameraManager.finalMeasurement?.heartRate {
-                                HealthKitManager.shared.saveHeartRate(heartRate)
+                            if let measurement = cameraManager.finalMeasurement {
+                                saveMeasurement(measurement)
+
+                                if let heartRate = measurement.heartRate {
+                                    HealthKitManager.shared.saveHeartRate(heartRate)
+                                }
+
+                                // Dismiss camera view first
+                                isPresented = false
+
+                                // Then notify parent to show detailed view
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    onMeasurementComplete?(measurement)
+                                }
                             }
-                            
-                            isPresented = false
                         } label: {
                             Text("See Results")
                                 .font(.headline)
@@ -129,29 +138,58 @@ struct CameraView: View {
                     .padding()
                 } else if cameraManager.waitingForFinger {
                     // Waiting for finger state
-                    VStack(spacing: 40) {
+                    VStack(spacing: 30) {
                         Text("Place Your Finger")
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
-                        
+
                         VStack(spacing: 20) {
                             Image(systemName: "hand.point.up.left.fill")
                                 .font(.system(size: 80))
                                 .foregroundStyle(.white.opacity(0.8))
                                 .symbolEffect(.pulse, options: .repeating)
-                            
-                            VStack(spacing: 15) {
-                                Text("Position your finger over")
-                                    .font(.body)
-                                    .foregroundStyle(.white)
-                                Text("the camera and flash")
-                                    .font(.body)
-                                    .foregroundStyle(.white)
-                                Text("Cover completely and hold steady")
-                                    .font(.body)
-                                    .foregroundStyle(.white.opacity(0.8))
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("1.")
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.white)
+                                    Text("Cover the camera and flash completely with your fingertip")
+                                        .font(.body)
+                                        .foregroundStyle(.white)
+                                }
+
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("2.")
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.white)
+                                    Text("Press gently but firmly - not too hard")
+                                        .font(.body)
+                                        .foregroundStyle(.white)
+                                }
+
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("3.")
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.white)
+                                    Text("Keep your hand steady and relaxed")
+                                        .font(.body)
+                                        .foregroundStyle(.white)
+                                }
+
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("💡")
+                                        .font(.body)
+                                    Text("Tip: Rest your hand on a surface for stability")
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.7))
+                                }
                             }
+                            .padding(.horizontal, 30)
                         }
                     }
                 } else if cameraManager.isRecording {
@@ -238,6 +276,25 @@ struct CameraView: View {
                 )
                 .transition(.opacity)
                 .zIndex(999)
+            }
+
+            // Error Alert Overlay
+            if cameraManager.showErrorAlert {
+                ErrorAlertOverlay(
+                    errorMessage: cameraManager.errorMessage,
+                    onTryAgain: {
+                        cameraManager.resetAfterError()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            cameraManager.startRecording()
+                        }
+                    },
+                    onCancel: {
+                        cameraManager.resetAfterError()
+                        isPresented = false
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(1000)
             }
         }
         .onAppear {
@@ -359,6 +416,57 @@ struct NoFingerTimeoutOverlay: View {
                     }
                     .padding(.horizontal, 40)
                     
+                    Button(action: onCancel) {
+                        Text("Cancel")
+                            .font(.system(size: 18, weight: .regular))
+                            .foregroundStyle(.gray)
+                    }
+                    .frame(height: 44)
+                }
+                .padding(.top, 10)
+            }
+        }
+    }
+}
+
+// Error Alert Overlay
+struct ErrorAlertOverlay: View {
+    let errorMessage: String
+    let onTryAgain: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.95)
+                .ignoresSafeArea()
+
+            VStack(spacing: 30) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 80))
+                    .foregroundStyle(.red)
+
+                Text("Measurement Error")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text(errorMessage)
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                VStack(spacing: 15) {
+                    Button(action: onTryAgain) {
+                        Text("Try Again")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(Color.green)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 40)
+
                     Button(action: onCancel) {
                         Text("Cancel")
                             .font(.system(size: 18, weight: .regular))

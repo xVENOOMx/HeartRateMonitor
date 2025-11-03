@@ -13,7 +13,7 @@ struct ResultsView: View {
     @Query(sort: [SortDescriptor(\HeartRateMeasurement.timestamp, order: .reverse)])
     private var measurements: [HeartRateMeasurement]
     @State private var showingCameraView = false
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -23,17 +23,22 @@ struct ResultsView: View {
                             EmptyStateView()
                         } else {
                             ForEach(measurements) { measurement in
-                                MeasurementCard(measurement: measurement)
+                                NavigationLink {
+                                    MeasurementDetailedView(measurement: measurement)
+                                } label: {
+                                    MeasurementCard(measurement: measurement, isMinimal: true)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                     }
                     .padding()
                     .padding(.bottom, 100)
                 }
-                
+
                 VStack {
                     Spacer()
-                    
+
                     Button {
                         showingCameraView = true
                     } label: {
