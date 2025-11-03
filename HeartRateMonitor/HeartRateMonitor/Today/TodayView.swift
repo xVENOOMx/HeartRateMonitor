@@ -147,10 +147,12 @@ struct TodaySummaryCard: View {
                         .fontWeight(.bold)
                         .foregroundStyle(.red)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                     Text("Avg BPM")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -163,10 +165,12 @@ struct TodaySummaryCard: View {
                         .fontWeight(.bold)
                         .foregroundStyle(.blue)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                     Text("Avg HRV")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -179,10 +183,12 @@ struct TodaySummaryCard: View {
                         .fontWeight(.bold)
                         .foregroundStyle(.orange)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                     Text("Avg Stress")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                 }
                 .frame(maxWidth: .infinity)
             }
