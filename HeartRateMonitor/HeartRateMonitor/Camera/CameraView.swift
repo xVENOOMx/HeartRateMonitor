@@ -141,17 +141,11 @@ struct CameraView: View {
                                 .foregroundStyle(.white.opacity(0.8))
                                 .symbolEffect(.pulse, options: .repeating)
                             
-                            VStack(spacing: 15) {
-                                Text("Position your finger over")
-                                    .font(.body)
-                                    .foregroundStyle(.white)
-                                Text("the camera and flash")
-                                    .font(.body)
-                                    .foregroundStyle(.white)
-                                Text("Cover completely and hold steady")
-                                    .font(.body)
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
+                            Text("Position your finger over the camera and flash, cover completely and hold steady")
+                                .font(.body)
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
                         }
                     }
                 } else if cameraManager.isRecording {
