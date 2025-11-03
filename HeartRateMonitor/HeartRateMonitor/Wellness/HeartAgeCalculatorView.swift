@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HeartAgeCalculatorView: View {
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var focusedField: Field?
 
     @State private var age = ""
     @State private var sex = "Male"
@@ -21,6 +22,10 @@ struct HeartAgeCalculatorView: View {
     @State private var hasDiabetes = false
     @State private var calculatedHeartAge: Int?
     @State private var isLoadingData = true
+
+    enum Field: Hashable {
+        case age, systolicBP, totalCholesterol, hdlCholesterol, weight, height
+    }
 
     var bmi: Double {
         guard let w = Double(weight), let h = Double(height), h > 0 else { return 25 }
@@ -69,6 +74,7 @@ struct HeartAgeCalculatorView: View {
                                 TextField("Age", text: $age)
                                     .keyboardType(.numberPad)
                                     .textFieldStyle(.roundedBorder)
+                                    .focused($focusedField, equals: .age)
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -89,6 +95,7 @@ struct HeartAgeCalculatorView: View {
                                 TextField("120", text: $systolicBP)
                                     .keyboardType(.numberPad)
                                     .textFieldStyle(.roundedBorder)
+                                    .focused($focusedField, equals: .systolicBP)
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -98,6 +105,7 @@ struct HeartAgeCalculatorView: View {
                                 TextField("190", text: $totalCholesterol)
                                     .keyboardType(.decimalPad)
                                     .textFieldStyle(.roundedBorder)
+                                    .focused($focusedField, equals: .totalCholesterol)
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -107,6 +115,7 @@ struct HeartAgeCalculatorView: View {
                                 TextField("50", text: $hdlCholesterol)
                                     .keyboardType(.decimalPad)
                                     .textFieldStyle(.roundedBorder)
+                                    .focused($focusedField, equals: .hdlCholesterol)
                             }
 
                             HStack(spacing: 15) {
@@ -117,6 +126,7 @@ struct HeartAgeCalculatorView: View {
                                     TextField("70", text: $weight)
                                         .keyboardType(.decimalPad)
                                         .textFieldStyle(.roundedBorder)
+                                        .focused($focusedField, equals: .weight)
                                 }
 
                                 VStack(alignment: .leading, spacing: 8) {
@@ -126,6 +136,7 @@ struct HeartAgeCalculatorView: View {
                                     TextField("170", text: $height)
                                         .keyboardType(.decimalPad)
                                         .textFieldStyle(.roundedBorder)
+                                        .focused($focusedField, equals: .height)
                                 }
                             }
 
@@ -140,6 +151,7 @@ struct HeartAgeCalculatorView: View {
                     .padding()
 
                     Button {
+                        focusedField = nil // Dismiss keyboard
                         calculateHeartAge()
                     } label: {
                         Text("Calculate Heart Age")
@@ -160,6 +172,12 @@ struct HeartAgeCalculatorView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") {
                         dismiss()
+                    }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        focusedField = nil
                     }
                 }
             }

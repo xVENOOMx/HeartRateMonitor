@@ -306,7 +306,7 @@ struct HealthSuggestionsCard: View {
                         Text(suggestion.message)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(1)
                     }
                 }
                 .padding(.vertical, 4)
