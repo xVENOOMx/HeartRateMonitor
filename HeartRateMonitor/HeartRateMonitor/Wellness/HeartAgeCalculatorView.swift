@@ -22,7 +22,6 @@ struct HeartAgeCalculatorView: View {
     @State private var hasDiabetes = false
     @State private var calculatedHeartAge: Int?
     @State private var isLoadingData = true
-    @State private var showingResult = false
     @State private var validationErrors: Set<Field> = []
     @State private var resultData: HeartAgeResultData?
 
@@ -30,7 +29,8 @@ struct HeartAgeCalculatorView: View {
         case age, systolicBP, totalCholesterol, hdlCholesterol, weight, height
     }
 
-    struct HeartAgeResultData {
+    struct HeartAgeResultData: Identifiable {
+        let id = UUID()
         let heartAge: Int
         let actualAge: Int
         let sex: String
@@ -190,16 +190,14 @@ struct HeartAgeCalculatorView: View {
             .onAppear {
                 loadHealthKitData()
             }
-            .sheet(isPresented: $showingResult) {
-                if let data = resultData {
-                    HeartAgeResultView(
-                        heartAge: data.heartAge,
-                        actualAge: data.actualAge,
-                        sex: data.sex,
-                        isSmoker: data.isSmoker,
-                        hasDiabetes: data.hasDiabetes
-                    )
-                }
+            .sheet(item: $resultData) { data in
+                HeartAgeResultView(
+                    heartAge: data.heartAge,
+                    actualAge: data.actualAge,
+                    sex: data.sex,
+                    isSmoker: data.isSmoker,
+                    hasDiabetes: data.hasDiabetes
+                )
             }
         }
     }
@@ -270,9 +268,8 @@ struct HeartAgeCalculatorView: View {
         }
 
         // All fields valid, calculate heart age
-        if calculateHeartAge() {
-            showingResult = true
-        }
+        // Setting resultData will automatically present the sheet
+        calculateHeartAge()
     }
 
     private func calculateHeartAge() -> Bool {
